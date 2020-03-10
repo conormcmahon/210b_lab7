@@ -1,0 +1,739 @@
+---
+title: "lab7"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(kableExtra)
+library(gridExtra)
+```
+
+
+
+### 1) Hyena Laughs and Age
+
+**In a study of hyena laughter, or “giggling”, Mathevon et al. (2010) asked whether sound spectral properties of hyenas’ giggles are associated with age. The accompanying data show the giggle fundamental frequency (in Hz) and the age (in years) of 16 hyenas. What is the correlation coefficient in the data, and what is most-plausible range of values for the population correlation?**
+
+```{r}
+
+hyenas <- data.frame(age = c(2,2,2,6,9,10,13,10,14,14,12,7,11,11,14,20),
+                     freq = c(840,670,580,470,540,660,510,520,500,480,400,650,460,500,580,500))
+
+kable(hyenas) %>% kable_styling()
+
+```
+
+#### a) Plot the fundamental frequency as a function of the age. Does it suggest a positive or negative association?
+
+```{r}
+
+ggplot(data=hyenas) + 
+  geom_point(aes(x=age,y=freq)) + 
+  xlab("Age (years)") + 
+  ylab("Laugh Fundamental Frequency (Hz)") + 
+  ggtitle("Laugh Frequency vs. Age for Hyenas")
+
+```
+
+The plot suggests a weak negative assocation between the two variables - that hyena laugh appears to get lower in pitch with age. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### b) Calculate the sum of squares for age.
+
+```{r}
+
+age_mean <- mean(hyenas$age)
+age_squares <- (hyenas$age - age_mean)^2
+
+age_sum_sq <- sum(age_squares)
+
+```
+
+The sum of squares value for age of hyenas is **`r age_sum_sq`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### c) Calculate the sum of squares for fundamental frequency.
+
+```{r}
+
+freq_mean <- mean(hyenas$freq)
+freq_squares <- (hyenas$freq - freq_mean)^2
+
+freq_sum_sq <- sum(freq_squares)
+
+```
+
+The sum of squares value for fundamental frequency of hyena laugh is **`r freq_sum_sq`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### d) Calculate the sum of products between age and frequency.
+
+```{r}
+
+sum_prod_simp <- sum(hyenas$age*hyenas$freq)
+sum_age <- sum(hyenas$age)
+sum_freq <- sum(hyenas$freq)
+
+sum_prod <- sum_prod_simp - sum_age*sum_freq/nrow(hyenas)
+
+```
+
+The sum of products value across age and fundamental frequency of hyena laugh is **`r sum_prod`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### e) Compute the correlation coefficient, r.
+
+```{r}
+
+r_hyena <- sum_prod / sqrt(age_sum_sq) / sqrt(freq_sum_sq)
+
+```
+
+The correlation coefficient between hyena fundamental laugh frequency and hyena age is **`r r_hyena`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### f) Compute the Fisher’s z-transformation of the correlation coefficient.
+
+\[
+z = 0.5 ln(\frac{1+r}{1-r})
+\]
+
+```{r}
+
+z_hyena <- 0.5*log((1+r_hyena)/(1-r_hyena))
+
+```
+
+The Fischer's z-transformation for the above r value is **`r z_hyena`**
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### g) Calculate the approximate standard error of the z-transformed correlation.
+
+```{r}
+
+sterr_hyenas <- sqrt(1/(nrow(hyenas)-3))
+
+```
+
+The standard error for this z-transformed correlation is **`r sterr_hyenas`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+#### h) What is $Z_{crit}$, the two-tailed critical value of the standard normal distribution corresponding to $\alpha$= 0.05?
+
+```{r}
+
+z_crit_hyenas <- qnorm(0.975)
+
+```
+
+The critical value of the z distribution for $\alpha$ = 0.05 with a two-tailed distribution is **`r z_crit_hyenas`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+#### i) Calculate the lower and upper bounds of the 95% confidence interval for $\zeta$, the z-transformed population correlation.
+
+```{r}
+
+lower_z_hyena <- z_hyena - z_crit_hyenas*sterr_hyenas
+upper_z_hyena <- z_hyena + z_crit_hyenas*sterr_hyenas
+
+```
+
+A 95% confidence interval on $\zeta$ is given by: 
+
+**`r round(lower_z_hyena,3)` $<\zeta <$ `r round(upper_z_hyena,3)`**
+
+Because this confidence interval does not include 0, we can conclude that our correlation is significant!
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### j) Transform the lower and upper bounds of the confidence interval of $\zeta$, yielding the 95% confidence interval for the population correlation coeffient.
+
+```{r}
+
+lower_corr_hyena <- (exp(2*lower_z_hyena)-1)/(exp(2*lower_z_hyena)+1)
+upper_corr_hyena <- (exp(2*upper_z_hyena)-1)/(exp(2*upper_z_hyena)+1)
+
+```
+
+A 95% confidence interval on $r$ is given by: 
+
+**`r round(lower_corr_hyena,3)` $<\zeta <$ `r round(upper_corr_hyena,3)`**
+
+
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+
+
+2) Hyena Laugh Hypothesis Testing
+
+**Use the same data shown in problem 1. Test whether there is a correlation in the population between giggle fundamental frequency and age.**
+
+#### a) State the null and alternative hypotheses.
+
+Ho: rho = 0; there is no linear relationship between age and laugh fundamental frequency in hyenas. 
+
+Ha: rho != 0; there is a linear relationship between age and laugh fundamental frequency in hyenas. 
+
+This test makes the following assumptions: 
+
+1) The test set is a random sample of the population. We'll just have to assume this is true because we have no idea how the hyenas were selected. 
+
+2) The variables have a bivariate normal distribution in the population: 
+
+```{r}
+
+age_hist <- ggplot(data=hyenas) + 
+  geom_histogram(aes(x=age))
+freq_hist <- ggplot(data=hyenas) + 
+  geom_histogram(aes(x=freq))
+
+grid.arrange(age_hist, freq_hist, nrow = 1)
+
+```
+
+The samples are pretty small which makes it hard to assess whether either of the population variables are normally distributed. The frequency sample looks more normally distributed than the age sample. We'll have to assume this is true, too. In reality it's very unlikely that hyena age is normally distributed in the population; we'd expect it to be right-skewed, because there can't be more mean-aged hyenas than young hyenas unless the population is changing over time. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### b) Calculate the standard error of the sample correlation r.
+
+\[
+\sqrt{\frac{1-r^2}{n-2}}
+\]
+
+```{r}
+
+sterr_r_hyena <- sqrt((1-r_hyena^2)/(nrow(hyenas)-2))
+
+```
+
+The standard error of the sample correlation is **`r sterr_r_hyena`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### c) Calculate the t-statistic.
+
+```{r}
+
+t_hyena <- r_hyena/sterr_r_hyena
+
+```
+
+The t statistic for this case is **`r t_hyena`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### d) What is the sample size? What are the degrees of freedom?
+
+```{r}
+
+df_hyenas <- nrow(hyenas)-2
+
+```
+
+
+The sample size is **`r nrow(hyenas)`** and the number of degrees of freedom is **`r df_hyenas`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### e) Obtain the critical value of t corresponding to $\alpha$= 0.05.
+
+```{r}
+
+t_crit_hyenas <- qt(0.975, df=df_hyenas)
+
+```
+
+The critical t-value for a two-sided test with $\alpha$=0.05 is **`r t_crit_hyenas`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### f) What is the conclusion from the test?
+
+Because our t statistic (`r t_hyena`) has a larger absolute value than the critical value statistic (`r t_crit_hyenas`), we can reject the null hypothesis that there is no relationship between these variables. There does appear to be a significant linear relationship between the hyena age and laugh fundamental frequency!
+
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+
+
+
+### 3) Disease
+
+**As human populations become more urban from prehistory to the present, disease transmission between people likely increased. Over time, this might have led to the evolution of enhanced resistance to certain diseases in settled human populations. For example, a mutation in a human gene causes resistance to tuberculosis. Barnes et al. (2011) examined the frequency of the resistant gene in different towns and villages in Europe and Asia and compared it to how long humans had been settled in the site (“duration of settlement”). If settlement led to the evolution of greater resistance to tuberculosis, there should be a positive association between the frequency of resistant gene and the duration of settlement. The data are below. Use the Spearman’s correlation to test an association between these variables.**
+
+
+```{r}
+
+disease <- data.frame(duration = c(8010,5260,4735,4010,3710,2810,2730,2310,2110,1955,1910,1300,378,194,130,110,91),
+                      freq = c(0.99,1,0.948,0.885,0.947,0.854,1,0.769,0.956,0.979,0.865,0.922,0.821,0.842,0.734,0.766,0.772))
+
+kable(disease) %>% kable_styling()
+
+```
+
+
+#### a) Rank duration from low to high.
+
+```{r}
+
+disease$duration_rank <- rank(disease$duration)
+kable(disease) %>% kable_styling()
+
+```
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### b) Rank gene frequency from low to high, assigning midranks to ties.
+
+```{r}
+
+disease$freq_rank <- rank(disease$freq)
+kable(disease) %>% kable_styling()
+
+```
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### c) Calculate the sum of squares for the ranks of duration, gene frequency, and the sum of products.
+
+```{r}
+
+duration_mean <- mean(disease$duration_rank)
+freq_mean <- mean(disease$freq_rank)
+
+duration_sum_sq <- sum((disease$duration_rank - duration_mean)^2)
+freq_sum_sq <- sum((disease$freq_rank - freq_mean)^2)
+disease_product_sum <- sum((disease$duration_rank - duration_mean)*(disease$freq_rank - freq_mean))
+
+```
+
+The sum of squares for the ranks of duration is **`r duration_sum_sq`**. For ranks of gene frequency it is **`r freq_sum_sq`**. The sum of products is **`r disease_product_sum`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### d) Compute the Spearman’s correlation coefficient.
+
+```{r}
+
+disease_r_spear <- disease_product_sum / sqrt(duration_sum_sq) / sqrt(freq_sum_sq)
+
+```
+
+The Spearman's correlation coefficient here is **`r disease_r_spear`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### e) What is the sample size?
+
+The sample size is **`r nrow(disease)`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### f) State the null and alternate hypotheses.
+
+Ho: There is no monotonic relationship between town duration and disease resistance allele frequency.
+
+Ha: There is a monotonic relationship between town duration and disease resistance allele frequency.
+
+This test still assumes that our sample is randomly chosen from the population. Again we can't really assess this here because we don't know how the cities were picked, so we'll have to hope it is approximately true!
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### g) Obtain the critical value for the Spearman’s correlation corresponding to $\alpha$= 0.05.
+
+The two-sided critical value for the Spearman's correlation with $\alpha$ = 0.05 and n = 17 is **`r 0.485`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### h) Draw the appropriate conclusion.
+
+Because our correlation value is larger than the critical value, we can reject the null hypothesis that there is no monotonic relationship between the duration of a settlement and the frequency of a tuberculosis-resistant gene. In this case, there seems to be a significant positive correlation between town age and gene frequency. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+
+
+
+### Face Shape and Aggression
+
+**Men’s faces have higher width-to-height ratios than women’s, on average. This turns out to reflect a difference in testosterone expression. Testosterone is also known to predict aggressive behavior. Does face shape predict aggression? To test this, Carré and McCormick (2008)compared the face width-to-height ratio of 21 university hockey players with the average number of penalty minutes awarded per game for aggressive infractions like fighting or cross-checking. Their data are below. Calculate the equationfor the line that best predicts penalty minutes from face width-to-height ratios.**
+
+```{r}
+
+aggression <- data.frame(ratio = c(1.59,1.67,1.65,1.72,1.79,1.77,1.74,1.74,1.77,1.78,1.76,1.81,1.83,1.83,1.84,1.87,1.92,1.95,1.98,1.99,2.07),
+                         aggression = c(0.44,1.43,1.57,0.14,0.27,0.35,0.85,1.13,1.47,1.51,1.99,1.06,1.2,1.23,0.8,2.53,1.23,1.1,1.61,1.95,2.95))
+
+kable(aggression) %>% kable_styling()
+
+```
+
+
+#### a.Plot the data in a scatter plot.
+
+```{r}
+
+ggplot(aggression) + 
+  geom_point(aes(x=ratio, y=aggression)) + 
+  xlab("Face Width:Height Ratio") + 
+  ylab("Penalty Minutes per Game") + 
+  ggtitle("Aggression vs. Face Ratio in Hockey Players")
+
+```
+
+
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### b.Examine the graph. Based on this graph, do the assumptions of linear regression appear to be met?
+
+1) The mean value of y variation about each value of X falls on a line, and the variation at each X point is equal and normal. 
+
+There is no obvous funneling in either direction, which supports the idea that variance is the same across X values. There does appear to be a line which runs through the center of the Y values for each X, with a positive nonzero slope. The variation normality assumption is difficult to test without a larger sample but doesn't look unreasonable based on these data. 
+
+2) For each X value, the Y values are a random sample of population values at that X. 
+
+This would depend on how the hockey players were chosen for the study. There's probably a good chance that this sample was non-random if the players were chosen on the basis of e.g. participiating in a given game. We'll have to assume that this was met, though. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### c.Calculate the means of the two variables.
+
+```{r}
+
+ratio_mean <- mean(aggression$ratio)
+aggression_mean <- mean(aggression$aggression)
+
+```
+
+The mean values for face ratio and aggression (as measured in penalty minutes per game) across all sampled players are respectively **`r ratio_mean`** and **`r aggression_mean`**.
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### d.How steeply does the number of penalty minutes increase per unit increase in face ratio? Calculate the estimate of the regression slope. Double check that the sign of the slope matches your impression from the scatter plot.
+
+```{r}
+
+b_aggression <- sum((aggression$ratio-ratio_mean)*(aggression$aggression-aggression_mean)) / sum((aggression$ratio-ratio_mean)^2)
+
+```
+
+Our slope estimate is **`r b_aggression`** minutes/game. As we expected, this value is positive (higher aggression with higher face width-to-height ratio).
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### e.Calculate the estimate of the intercept from the variable means and your estimate of regression slope.
+
+```{r}
+
+a_aggression <- aggression_mean - b_aggression*ratio_mean
+
+```
+
+Our intercept estimate is **`r a_aggression`** minutes/game. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### f.Write the result in the form of an equation for the line. Add this line to graph in part (a).
+
+The equation we got was:
+
+$aggression =$ **`r b_aggression`** $ratio_{face} + ($**`r a_aggression`**)
+
+
+```{r}
+
+line_data <- data.frame(ratio=c(1.5,2.1),
+                        aggression=c(a_aggression+b_aggression*1.5,a_aggression+b_aggression*2.1))
+
+ggplot() + 
+  geom_point(data=aggression, aes(x=ratio, y=aggression)) + 
+  geom_line(data=line_data, aes(x=ratio,y=aggression), col="red") + 
+  xlab("Face Width:Height Ratio") + 
+  ylab("Penalty Minutes per Game") + 
+  ggtitle("Aggression vs. Face Ratio in Hockey Players")
+
+```
+
+
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+
+
+
+
+### 5) Aggression Regression Confidence Interval 
+
+**How uncertain is our estimate from the previous analysis? Using the face ratio and hockey aggressive penalty data, calculate the standard error and confidence interval of the slope of the linear regression.**
+
+#### a) Calculate the total sum of squares for the response/dependent variable, penalty minutes.
+
+```{r}
+
+aggression_sum_sq <- sum((aggression$aggression-aggression_mean)^2)
+
+```
+
+The sum of squares for the aggression response variable is **`r aggression_sum_sq`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### b.Calculate the residual mean square using the total sum of square for Y, and the sum of products, and the slope b.
+
+```{r}
+
+aggression_sum_of_products <- sum((aggression$ratio-ratio_mean)*(aggression$aggression-aggression_mean))
+
+aggression_ms_resid <- (aggression_sum_sq - b_aggression*aggression_sum_of_products) / (nrow(aggression)-2)
+
+```
+
+The residual mean square value for the aggression data is **`r aggression_ms_resid`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### c.Calculate the standard error of b.
+
+```{r}
+
+ratio_sum_sq <- sum((aggression$ratio-ratio_mean)^2)
+
+sterr_b_aggression <- sqrt(aggression_ms_resid/ratio_sum_sq)
+
+```
+
+The standard error for the slope of aggression over face ratio is **`r sterr_b_aggression`**. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### d.How many degrees of freedom does this analysis of the slope have?
+
+```{r}
+
+df_aggression_slope <- nrow(aggression)-2
+
+```
+
+This analysis of slope has **`r df_aggression_slope`** degrees of freedom. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### e) Find the two-tailed critical t-value for a 95% confidence interval for the appropriate df.
+
+```{r}
+
+t_crit_aggression <- qt(0.975, df=df_aggression_slope)
+
+```
+
+The critical t value for this analysis is **`r t_crit_aggression`**. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### f) Calculate the confidence interval of the population regression slope
+
+```{r}
+
+b_lower <- b_aggression - t_crit_aggression*sterr_b_aggression
+b_upper <- b_aggression + t_crit_aggression*sterr_b_aggression
+
+```
+
+A 95% confidence interval on $\zeta$ is given by: 
+
+**`r round(b_lower,3)` $< b <$ `r round(b_upper,3)`**
+
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+
+
+
+### 6) Regression Hypothesis Testing
+
+**Can the above relationship be explained by chance? Using the same data as problem 4, test the null hypothesis that the slope of the regressionline is zero.**
+
+#### a) State the null and alternate hypotheses.
+
+Ho: The true slope value of the regression between face ratio and aggression in this population is zero. 
+
+Ha: The true slope value of this regression is NOT zero. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### b) What is the regression slope under the null hypothesis?
+
+**Zero.**
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### c) Calculate the test statistic t, and the standard error of b.
+
+```{r}
+
+# we found the standard error of b already during problem 5c:
+
+t_aggression = (b_aggression - 0)/sterr_b_aggression
+
+```
+
+The t statistic here is **`r t_aggression`**. The standard error of b is **`r b_aggression`**. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### d) Find the critical value of t appropriate for the degrees of freedom, at $\alpha$= 0.05.
+
+The t distribution here has n-2 degrees of freedom. 
+
+```{r}
+
+t_crit_aggression <- qt(0.975, df=df_aggression_slope)
+
+```
+
+The critical t value here is **`r t_crit_aggression`**.
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### e) Is the absolute value of the t for this test greater than the critical value?
+
+The t value we found is much larger than the critical value, which indicates that we can reject the null hypothesis. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### f) Estimate the P-value for this test, and draw conclusion from this test.
+
+```{r}
+
+p_slope_aggression <- pt(t_aggression, df=df_aggression_slope, lower.tail=F)
+
+```
+
+The p value for this test is **`r p_slope_aggression`**. Because this value is much less than $\alpha$ = 0.05, we can reject the null hypothesis that the slope is zero. We can conclude that the relationship between face ratio and aggression has a non-zero slope. 
+
+<!-- forced_linebreak -->
+&nbsp; 
+
+
+#### g) What fraction of the variation in penalty minutes per game is accounted for by face ratio? Calculate the value of R2.
+
+```{r}
+
+aggression$prediction <- b_aggression*aggression$ratio + a_aggression
+
+ss_regress <- sum((aggression$prediction - aggression_mean)^2)
+ss_total <- sum((aggression$aggression - aggression_mean)^2)
+
+r_sq_aggression <- ss_regress / ss_total
+
+```
+
+The $R^2$ value for face ratio and aggression is **`r r_sq_aggression`**. This means that about `r r_sq_aggression*100`% of the variation in aggression (penalty minutes per game) is accounted for by face ratio.
